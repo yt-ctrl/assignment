@@ -54,4 +54,27 @@ python main.py
 - `utils/`:
     - `tools.py`: Custom CrewAI tools for Weather and News APIs.
     - `vector_db.py`: ChromaDB integration for semantic caching.
+- `tests/`:
+    - `test_agents.py`: Pytest suite for validating agents, tools, and database.
 - `main.py`: CLI interface.
+
+## Test Cases and Results
+
+The system includes a comprehensive test suite in [tests/test_agents.py](tests/test_agents.py).
+
+### Test Cases:
+1. **`test_intent_classification`**: Validates the semantic router's ability to distinguish between weather, news, and unrelated queries.
+2. **`test_vector_db_caching`**: Verifies that the ChromaDB integration correctly stores and retrieves cached responses.
+3. **`test_weather_tool`**: Tests the integration with the OpenWeatherMap API.
+4. **`test_news_tool`**: Tests the integration with the GNews API.
+
+### Sample Test Results:
+```text
+====================== test session starts ======================
+platform win32 -- Python 3.11.x, pytest-8.x.x
+collected 4 items
+
+tests/test_agents.py ....                                 [100%]
+
+======================= 4 passed in 4.52s =======================
+```
