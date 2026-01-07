@@ -20,34 +20,68 @@ class CrewManager:
         self.weather_tool = WeatherTool()
         self.news_tool = NewsTool()
 
-    def get_autonomous_agent(self):
-        """Creates an agent with access to all tools that autonomously decides which to use."""
+    def get_weather_agent(self):
+        """Weather specialist sub-agent that automatically uses the weather tool."""
         return Agent(
-            role='Multi-Purpose Assistant',
-            goal='Answer user queries by automatically selecting and using the appropriate tools',
-            backstory='You are an intelligent assistant with access to weather and news tools. '
-                      'Analyze the user query and automatically call the appropriate tool to get the information needed. '
-                      'Use the Weather Tool for weather-related queries and the News Tool for news-related queries.',
-            tools=[self.weather_tool, self.news_tool],
+            role='Weather Specialist',
+            goal='Provide accurate and current weather information for any location',
+            backstory='You are an expert meteorologist with real-time weather data access. '
+                      'When asked about weather, you automatically use your weather tool to fetch current conditions.',
+            tools=[self.weather_tool],
             llm=self.llm,
             verbose=True,
             allow_delegation=False,
-            function_calling_llm=self.llm  # Enable automatic function calling
+            function_calling_llm=self.llm
+        )
+
+    def get_news_agent(self):
+        """News specialist sub-agent that automatically uses the news tool."""
+        return Agent(
+            role='News Reporter',
+            goal='Provide the latest news headlines and updates on any topic',
+            backstory='You are a seasoned journalist with access to breaking news from around the world. '
+                      'When asked about news, you automatically use your news tool to fetch the latest headlines.',
+            tools=[self.news_tool],
+            llm=self.llm,
+            verbose=True,
+            allow_delegation=False,
+            function_calling_llm=self.llm
+        )
+
+    def get_router_agent(self):
+        """Main routing agent that delegates to appropriate sub-agents."""
+        return Agent(
+            role='Query Router',
+            goal='Analyze user queries and delegate to the appropriate specialist agent',
+            backstory='You are an intelligent routing agent. Your job is to understand what the user needs '
+                      'and delegate the query to either the Weather Specialist or News Reporter. '
+                      'You do not answer queries yourself - you always delegate to the right specialist.',
+            tools=[],
+            llm=self.llm,
+            verbose=True,
+            allow_delegation=True  # Enable delegation to sub-agents
         )
 
     def run_crew(self, query):
         """
-        Creates and runs a crew that autonomously determines which tool to use.
+        Creates and runs a crew with main routing agent and specialized sub-agents.
+        The router agent automatically delegates to the appropriate sub-agent.
         """
-        agent = self.get_autonomous_agent()
+        # Create all agents
+        router_agent = self.get_router_agent()
+        weather_agent = self.get_weather_agent()
+        news_agent = self.get_news_agent()
+
+        # Create task for the router agent
         task = Task(
-            description=f"Answer the following query by automatically using the appropriate tool: '{query}'",
-            expected_output="A clear and helpful response with the requested information.",
-            agent=agent
+            description=f"Analyze this query and delegate to the appropriate specialist: '{query}'",
+            expected_output="A complete answer to the user's query obtained from the appropriate specialist.",
+            agent=router_agent
         )
 
+        # Create crew with all agents
         crew = Crew(
-            agents=[agent],
+            agents=[router_agent, weather_agent, news_agent],
             tasks=[task],
             process=Process.sequential,
             verbose=True
