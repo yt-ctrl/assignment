@@ -20,71 +20,31 @@ class CrewManager:
         self.weather_tool = WeatherTool()
         self.news_tool = NewsTool()
 
-    def classify_intent(self, query):
-        """
-        Uses the LLM to semantically route the query to the correct category.
-        """
-        prompt = f"""
-        Analyze the user query and classify it into exactly one of these categories: 'weather', 'news', or 'unknown'.
-        
-        - 'weather': Queries about current weather, temperature, forecast, or atmospheric conditions.
-        - 'news': Queries about current events, headlines, world news, or specific topics in the news.
-        - 'unknown': Anything else that doesn't fit the above.
-
-        User Query: "{query}"
-        
-        Return only the category name in lowercase.
-        """
-        response = self.llm.invoke(prompt)
-        category = response.content.strip().lower()
-        
-        # Basic validation to ensure we get one of the expected strings
-        if category in ["weather", "news"]:
-            return category
-        return "unknown"
-
-    def get_weather_agent(self):
+    def get_autonomous_agent(self):
+        """Creates an agent with access to all tools that autonomously decides which to use."""
         return Agent(
-            role='Weather Specialist',
-            goal='Provide accurate weather information for a given location',
-            backstory='You are an expert meteorologist with access to real-time weather data.',
-            tools=[self.weather_tool],
+            role='Multi-Purpose Assistant',
+            goal='Answer user queries by automatically selecting and using the appropriate tools',
+            backstory='You are an intelligent assistant with access to weather and news tools. '
+                      'Analyze the user query and automatically call the appropriate tool to get the information needed. '
+                      'Use the Weather Tool for weather-related queries and the News Tool for news-related queries.',
+            tools=[self.weather_tool, self.news_tool],
             llm=self.llm,
             verbose=True,
-            allow_delegation=False
+            allow_delegation=False,
+            function_calling_llm=self.llm  # Enable automatic function calling
         )
 
-    def get_news_agent(self):
-        return Agent(
-            role='News Reporter',
-            goal='Provide the latest news headlines for a given topic',
-            backstory='You are a seasoned journalist who stays on top of global events.',
-            tools=[self.news_tool],
-            llm=self.llm,
-            verbose=True,
-            allow_delegation=False
+    def run_crew(self, query):
+        """
+        Creates and runs a crew that autonomously determines which tool to use.
+        """
+        agent = self.get_autonomous_agent()
+        task = Task(
+            description=f"Answer the following query by automatically using the appropriate tool: '{query}'",
+            expected_output="A clear and helpful response with the requested information.",
+            agent=agent
         )
-
-    def run_crew(self, query, category):
-        """
-        Creates and runs a crew based on the query category.
-        """
-        if category == "weather":
-            agent = self.get_weather_agent()
-            task = Task(
-                description=f"Fetch and summarize the weather for the location mentioned in: '{query}'",
-                expected_output="A friendly weather report.",
-                agent=agent
-            )
-        elif category == "news":
-            agent = self.get_news_agent()
-            task = Task(
-                description=f"Fetch and summarize the latest news for the topic mentioned in: '{query}'",
-                expected_output="A concise list of news headlines.",
-                agent=agent
-            )
-        else:
-            return "I'm sorry, I can only handle weather and news requests."
 
         crew = Crew(
             agents=[agent],
